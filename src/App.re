@@ -8,7 +8,10 @@ type item = {
 
 type state = {items: list(item)};
 
-let getPrice = i => i.price;
+type action =
+  | ViewItem(item);
+
+let getPrice = (i: item) => i.price;
 
 let summarize = (l: list(item)) =>
   switch (l) {
@@ -16,12 +19,14 @@ let summarize = (l: list(item)) =>
   | l => List.fold_left((x, y) => x +. getPrice(y), 0.0, l)
   };
 
+let handleClick = (onViewItem, item, _e) => onViewItem(item);
+
 module ListItem = {
   let component = ReasonReact.statelessComponent("ListItem");
-  let make = (~item, _children) => {
+  let make = (~item, ~onViewItem, _children) => {
     ...component,
-    render: (_) =>
-      <tr className="item">
+    render: _ =>
+      <tr className="item" onClick=(handleClick(onViewItem, item))>
         <td> (ReasonReact.string(item.name)) </td>
         <td> (ReasonReact.string(string_of_float(item.price))) </td>
       </tr>,
@@ -30,9 +35,9 @@ module ListItem = {
 
 module ListTable = {
   let component = ReasonReact.statelessComponent("ListTable");
-  let make = (~items, _children) => {
+  let make = (~items, ~onViewItem, _children) => {
     ...component,
-    render: (_) =>
+    render: _ =>
       <table className="items">
         <tbody>
           <tr>
@@ -42,7 +47,11 @@ module ListTable = {
           (
             items
             |> List.map(item =>
-                 <ListItem key=(string_of_int(item.id)) item />
+                 <ListItem
+                   key=(string_of_int(item.id))
+                   item
+                   onViewItem
+                 />
                )
             |> Array.of_list
             |> ReasonReact.array
@@ -69,14 +78,24 @@ let make = (~message, _children) => {
       {id: 3, name: "pasta", price: 12.0},
     ],
   },
-  reducer: ((), _) => ReasonReact.NoUpdate,
-  render: ({state: {items}}) => {
-    let numItems = List.length(items);
+  reducer: (action, {items}) =>
+    switch (action) {
+    | ViewItem(item) =>
+      Js.log("selected id" ++ string_of_int(item.id));
+      ReasonReact.Update({items: items});
+    },
+  render: self => {
+    let numItems = List.length(self.state.items);
     <div className="App">
       <div className="App-header">
         <h2> (ReasonReact.string(message)) </h2>
       </div>
-      <div className="App-body"> <ListTable items /> </div>
+      <div className="App-body">
+        <ListTable
+          items=self.state.items
+          onViewItem=(item => self.send(ViewItem(item)))
+        />
+      </div>
       <div className="App-footer">
         (ReasonReact.string(string_of_int(numItems) ++ " items"))
       </div>
